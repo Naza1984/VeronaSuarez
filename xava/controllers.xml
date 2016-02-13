@@ -1,0 +1,131 @@
+<?xml version = "1.0" encoding = "ISO-8859-1"?>
+<!DOCTYPE controllers SYSTEM "dtds/controllers.dtd">
+<controllers>
+	<!-- Defino un valor global para una variable de entorno -->
+	<!-- La acción estándar para buscar en modo lista no hace nada, simplemente redirige a otra acción. 
+	Esta otra acción se define en la variable de entorno XAVA_SEARCH_ACTION.
+	Por lo tanto, refino la lógica de búsqueda de OpenXava definiendo mi acción como valor para XAVA_SEARCH_ACTION.
+	Así la lógica de búsqueda para todos los módulos estará en esta acción
+	-->
+	<env-var
+		name="XAVA_SEARCH_ACTION"
+		value="VeronaSuarez.BuscarExcluyendoBorrable"/>
+	
+	<!--
+	Una forma de compartir datos entre módulos es declarando un objeto de sesión de ámbito global.
+	Un objeto de sesión es un objeto asociado a la sesión del usuario, por lo tanto vivirá mientras que la sesión del usuario esté viva, y cada usuario tiene su propia copia del objeto.
+	El nombre tiene que ser único y se debe indicar el tipo del objeto.
+	Si usas scope="global" el mismo objeto se compartirá por todos los módulos.
+	Por defecto es "module", donde cada módulo tiene su propia copia del objeto.
+	
+	Declaramos el ámbito del objeto como global porque queremos usarlo para pasar datos desde el módulo Pedido al módulo CurrentInvoiceEdition
+	-->
+	<object name="veronasuarez_currentInvoiceKey"
+		class="java.util.Map"
+		scope="global"
+	/>
+
+	<!-- el controlador VeronaSuarez no es usado por ningún módulo porque no hay ninguna entidad llamada VeronaSuarez.
+	Para que este controlador sea el usado por defecto por todos los módulos de la aplicación tengo que modificar el 
+	archivo application.xml para ponerle el mismo application name que el controlador
+	-->
+	<controller name="VeronaSuarez">
+		<extends controller="Typical"/> <!-- Hereda todas las acciones de Typical -->
+		
+		<!-- Typical ya tiene una acción 'delete', al usar el mismo nombre la sobrescribimos -->
+		<!-- Accion para borrar objetos en la aplicacion -->
+		<action name="delete"
+		mode="detail" confirm="true"
+		class="org.openxava.veronasuarez.actions.AccionBorrar"
+		image="images/delete.gif"
+		keystroke="Control D"/>
+		
+		<action name="BuscarExcluyendoBorrable"
+		hidden="true"
+		class="org.openxava.veronasuarez.actions.AccionBuscarExcluyendoBorrable"/>
+		<!-- hidden="true" : Así la acción no se mostrará en la barra de botones -->
+		
+		
+		<action name="deleteSelected" mode="list" confirm="true"
+		class="org.openxava.veronasuarez.actions.AccionBorrarSeleccionado"
+		keystroke="Control D"/>
+				
+		<action name="deleteRow" mode="NONE" confirm="true"
+		class="org.openxava.veronasuarez.actions.AccionBorrarSeleccionado"
+		image="images/delete.gif"
+		in-each-row="true"/>
+	</controller>
+	
+	<controller name="Pedido">
+		<extends controller="VeronaSuarez"/> <!-- Para tener las acciones estándar -->
+		
+		<!-- Sólo en modo detalle -->
+		<action name="createInvoice" 
+		mode="detail"
+		class="org.openxava.veronasuarez.actions.CreateInvoiceFromOrderAction"/>
+		
+		
+		<!-- nueva acción disponible para Pedido solo mostrada en modo lista -->
+		<action name="createInvoiceFromSelectedOrders"
+		mode="list"
+		class=
+		"org.openxava.veronasuarez.actions.CreateInvoiceFromSelectedOrdersAction"
+		/>
+		
+		<!-- Buscar una factura desde un pedido: tiene que filtrarse por cliente	-->
+		<action name="searchInvoice"
+			class="org.openxava.veronasuarez.actions.SearchInvoiceFromOrderAction"
+			hidden="true" image="images/search.gif"/>
+		
+	</controller>
+	
+	<controller name="Papelera">
+		<action name="restaurar" mode="list"
+		class="org.openxava.veronasuarez.actions.AccionBorrarSeleccionado">
+		<set property="restaurar" value="true"/> <!-- Pone la propiedad "restaurar" a true -->
+		</action> <!-- antes de llamar al método execute() de la acción -->
+	</controller>
+	
+	<!-- El módulo CurrentInvoiceEdition sólo permite al usuario cambiar la factura, grabar los cambios o volver al módulo original-->
+	<controller name="CurrentInvoiceEdition">
+		<action name="save"
+			class="org.openxava.veronasuarez.actions.SaveInvoiceAction"
+			keystroke="Control S"
+		/>
+		
+		<action name="return"
+			class="org.openxava.actions.ReturnPreviousModuleAction"
+		/>
+				
+		<!--
+		acción para cargar el valor de la factura creada en el módulo Pedido con CreateInvoiceFromSelectedOrdersAction.
+		Declaramos la acción como hidden=true, así no será visible, y por tanto el usuario no tendrá la posibilidad de ejecutarla. 
+		Además, la declaramos como oninit=true, por tanto se ejecutará automáticamente cuando el módulo se inicialice.
+		-->
+		<action name="load"
+			class="org.openxava.veronasuarez.actions.LoadCurrentInvoiceAction"
+			hidden="true"
+			on-init="true"
+		/>
+	</controller>
+	
+	<controller name="Factura">   <!-- El mismo nombre que la entidad -->
+		<extends controller="VeronaSuarez"/>
+		<action name="addOrders"
+			class="org.openxava.veronasuarez.actions.GoAddOrdersToInvoiceAction"
+			hidden="true" image="images/create_new.gif"
+		/>
+		<!--
+		hidden="true": No se mostrará en la barra de botones del módulo
+		image="images/create_new.gif": La misma imagen que la acción estándar
+		-->
+	</controller>
+	
+	<controller name="AddOrdersToInvoice">
+		<extends controller="AddToCollection"/> <!-- Extiende del controlador estándar -->
+		<!-- Sobrescribe la acción para añadir -->
+		<action name="add"
+		class="org.openxava.veronasuarez.actions.AddOrdersToInvoiceAction"/>
+	</controller>
+	
+</controllers>
